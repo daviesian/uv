@@ -766,5 +766,16 @@ async fn get_or_create_environment(
         },
     };
 
-    Ok((from, environment.into()))
+    let env: PythonEnvironment = environment.into();
+
+    // If this environment was previously used by "uv run --with ...", it may have a .pth file
+    // pointing to the project venv of the previous run. Remove it.
+    // NOTE: This doesn't handle the case where this environment is being used in multiple
+    //       places simultaneously. The existence of the .pth file should probably cause the
+    //       cached environment not to match at all.
+    if let Some(site_packages) = env.site_packages().next() {
+        drop(std::fs::remove_file(&site_packages.join("_uv_ephemeral_overlay.pth")));
+    }
+
+    Ok((from, env))
 }
